@@ -1,0 +1,28 @@
+# Secrets — never commit
+.env
+
+# Virtual environment
+.venv/
+venv/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Local API-response caches (regenerated each run)
+.cache/
+
+# Rendered preview, written on every --send
+briefing-preview.html
+
+# Ad-hoc debug dumps
+out.json
+scratch*.json
+
+# OS
+.DS_Store
+
+# NOTE: history.json is intentionally NOT ignored — it is the deduplication
+# database, committed back by the workflow after each run.

@@ -1,0 +1,258 @@
+# AI Trend Briefing — collection configuration
+#
+# Sprint 1 covers keyless sources only. Sources requiring credentials are
+# listed but disabled, and are switched on in the sprint that supplies the key.
+
+# How far back a run looks. Stories older than this are ignored entirely.
+lookback_hours: 48
+
+# Used to filter general-interest feeds (Techmeme, personal blogs) down to AI
+# items. Feeds that are already AI-only skip this via `topical: true`.
+keywords:
+  - ai
+  - artificial intelligence
+  - llm
+  - large language model
+  - machine learning
+  - neural
+  - openai
+  - anthropic
+  - claude
+  - gpt
+  - gemini
+  - deepmind
+  - mistral
+  - llama
+  - deepseek
+  - qwen
+  - transformer
+  - diffusion
+  - agent
+  - inference
+  - fine-tune
+  - open weights
+  - benchmark
+  - agi
+
+# --- Clustering -------------------------------------------------------------
+# How similar two headlines must be to count as the same event. Too high and
+# one story splits across entries; too low and unrelated stories merge.
+clustering:
+  title_similarity: 82        # 0-100, rapidfuzz token_set_ratio
+  # Fuzzy matching cannot merge genuine rewrites — "Moonshot Launches Kimi K3"
+  # and "Chinese AI model takes US industry by surprise" share no words. Two
+  # shared named entities is strong evidence of the same subject.
+  min_shared_entities: 2
+  # Shared entities must be a majority of the smaller set. Without this, two
+  # incidental shared names merge unrelated stories.
+  entity_overlap_ratio: 0.6
+  # Prefixes stripped before comparing, so "Show HN: Foo" matches "Foo".
+  strip_prefixes:
+    - "show hn:"
+    - "ask hn:"
+    - "tell hn:"
+    - "new model available:"
+    - "new model trending on hugging face:"
+    - "launch hn:"
+
+# --- Scoring ----------------------------------------------------------------
+scoring:
+  # Half-life in hours for the recency multiplier. At 24h a story scores half
+  # what it would have brand new.
+  recency_half_life_h: 24
+  # How hard corroboration counts. Applied as (source_count ** exponent).
+  corroboration_exponent: 0.6
+  # Floor value for stories with no engagement data. An official OpenAI post
+  # with zero HN traction is still news, and without this it scores zero.
+  official_announcement_floor: 8.0
+  # Floor for edited news reports with no engagement metric. Weaker evidence
+  # than an official post, far stronger than nothing.
+  news_report_floor: 2.0
+  # Saturation divisor is (1 + article_count) ** exponent. Raising this pushes
+  # harder toward early, under-covered stories.
+  saturation_exponent: 0.45
+
+# --- Article enrichment ------------------------------------------------------
+# Feed snippets are often one sentence, which is not enough to write real
+# context from. Fetch the article itself for stories that will be summarised.
+enrich:
+  enabled: true
+  max_stories: 4          # slightly above summarise.max_stories, for headroom
+  min_chars: 600          # below this it is a stub, not an article
+  max_chars: 8000
+  cache_ttl_s: 172800
+
+# --- Summarisation (Sprint 3) ------------------------------------------------
+summarise:
+  # Pinned because flash-lite is what the free tier serves in this region.
+  # Change here if regional availability shifts.
+  model: gemini-flash-lite-latest
+  # Fully worked stories per briefing. The rest become the watchlist.
+  max_stories: 3
+  # Low: this is summarisation of supplied text, not creative writing.
+  temperature: 0.2
+  max_output_tokens: 2048
+  cache_ttl_s: 86400
+  # A story whose summary comes back "low" confidence is treated as unusable —
+  # the material was too thin. If nothing clears the bar, the briefing says so
+  # rather than manufacturing significance.
+  min_confidence: medium
+  # Stories listed under the watchlist in the email.
+  watchlist_size: 6
+
+# Topic classification is keyword-based in Sprint 2. Each cluster takes the
+# weight of the first topic it matches, so order matters here.
+topics:
+  model_launches:
+    weight: 1.0
+    keywords: [releases, release, launch, launches, launched, announces, announcing,
+               unveils, unveiled, "new model", "open weights", open-source,
+               "available now", ships, shipping, introduces, introducing, debuts,
+               "rolls out", "general availability", preview, beta, "now supports",
+               upgrade, upgraded, "version", outperforms, benchmark]
+  ai_controversy:
+    weight: 0.9
+    keywords: [lawsuit, sues, sued, copyright, jailbreak, jailbroken, hacked, breach,
+               banned, ban, bans, regulation, regulator, safety, misuse, deepfake,
+               scandal, investigation, probe, fired, resigns, resigned, controversy,
+               backlash, leaked, leak, criticism, criticised, warns, warning, risk,
+               threat, suspends, suspended, restricts, blocks, outage, shutdown,
+               concerns, accused, privacy, bias, harmful]
+  business_money:
+    weight: 0.7
+    keywords: [funding, raises, raised, valuation, acquisition, acquires, acquired,
+               ipo, revenue, layoffs, "series a", "series b", "series c", billion,
+               million, invests, investment, investor, investors, deal, partnership,
+               merger, stake, stocks, market, profit, losses, spending, pricing,
+               subscription, subscriptions, demand, capacity, datacenter, chips]
+  research_papers:
+    weight: 0.4
+    keywords: [paper, arxiv, benchmark, benchmarks, evaluation, "state of the art",
+               sota, outperforms, study, findings, research, dataset, ablation]
+  dev_tooling:
+    weight: 0.2
+    keywords: [library, sdk, api, framework, cli, plugin, extension, wrapper,
+               toolkit, repo, github, "open source tool"]
+
+sources:
+
+  hackernews:
+    enabled: true
+    kind: signal
+    # Each term is a separate search. Algolia matches loosely — "ai" returns
+    # "Airbus" and "Airport" — so results are keyword-filtered afterwards.
+    queries: [ai, llm, openai, anthropic, gemini, "open source model", agent]
+    min_points: 5
+    limit_per_query: 40
+    # Discard hits whose titles don't actually mention anything AI-related.
+    filter_by_keywords: true
+
+  rss:
+    enabled: true
+    feeds:
+      # Official announcement feeds — the record of what actually shipped.
+      - name: openai
+        url: https://openai.com/news/rss.xml
+        kind: record
+        topical: true
+      - name: deepmind
+        url: https://deepmind.google/blog/rss.xml
+        kind: record
+        topical: true
+      - name: google-ai
+        url: https://blog.google/technology/ai/rss/
+        kind: record
+        topical: true
+      - name: huggingface-blog
+        url: https://huggingface.co/blog/feed.xml
+        kind: record
+        topical: true
+      - name: mistral
+        url: https://mistral.ai/rss.xml
+        kind: record
+        topical: true
+      - name: microsoft-research
+        url: https://www.microsoft.com/en-us/research/feed/
+        kind: record
+        topical: false
+      # Curated aggregation — human judgement that something matters.
+      - name: techmeme
+        url: https://www.techmeme.com/feed.xml
+        kind: record
+        topical: false
+      - name: simonwillison
+        url: https://simonwillison.net/atom/everything/
+        kind: signal
+        topical: false
+
+  huggingface:
+    enabled: true
+    kind: signal
+    trending_limit: 30
+    include_daily_papers: true
+    # A model created two weeks ago that is trending *today* is still news —
+    # trendingScore carries the signal, not the creation date.
+    new_within_days: 21
+
+  openrouter:
+    enabled: true
+    kind: signal
+    # Models added to OpenRouter within this window count as new releases.
+    new_within_days: 14
+
+  lobsters:
+    enabled: true
+    kind: signal
+    # NOT "ml" — on Lobsters that tag is the OCaml / Standard ML language
+    # family, not machine learning. It pulled in posts like "Using OCaml's GC
+    # to GC Rust", which ranked third in a briefing about AI.
+    tags: [ai]
+    filter_by_keywords: true
+
+  arxiv:
+    enabled: true
+    kind: signal
+    categories: [cs.AI, cs.CL, cs.LG]
+    max_results: 60
+    # arXiv does not announce at weekends. With the global 48h window this
+    # collector returns nothing at all on Mondays, so it gets its own.
+    lookback_hours: 120
+    # arXiv terms of use: one request per three seconds, single connection.
+    request_delay_s: 3.0
+
+  # --- Enabled in later sprints, once credentials exist ---
+
+  guardian:
+    enabled: true
+    kind: record
+    # The Guardian publishes few AI stories (~10 per 2 days) and plain full-text
+    # search drags in anything that merely mentions AI. Restricting to the
+    # technology section is the difference between "Could AI be conscious?" and
+    # a gilt-yields report. Its real value is bodyText for context in Sprint 3.
+    section: technology
+    page_size: 30
+    lookback_hours: 72
+
+  newsdata:
+    enabled: true
+    kind: record
+    # qInTitle works on the free tier and is the whole game: a plain `q` search
+    # returns 3,159 mostly-irrelevant results, qInTitle returns ~50 real ones.
+    # Broad `q` is still used for saturation counting, where recall is wanted.
+    queries: ["artificial intelligence", "AI model", OpenAI, Anthropic, "language model"]
+    lookback_hours: 48
+    # Free tier is 200 credits/day. Collection uses ~5, saturation lookups use
+    # one per candidate cluster, so the cap below keeps us well inside budget.
+    max_saturation_lookups: 25
+
+  github:
+    enabled: false        # Sprint 6
+    kind: signal
+
+  bluesky:
+    enabled: false        # Sprint 6
+    kind: signal
+
+  reddit:
+    enabled: false        # Sprint 6, only if OAuth approval arrives
+    kind: signal
