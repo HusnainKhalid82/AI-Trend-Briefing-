@@ -1,0 +1,62 @@
+name: Daily AI Briefing
+
+on:
+  schedule:
+    # 03:17 UTC ≈ 08:17 PKT. Deliberately not on the hour: GitHub delays and
+    # sometimes drops jobs scheduled at :00 because every hour boundary is a
+    # load spike. An odd offset is materially more reliable.
+    - cron: "17 3 * * *"
+  # Lets you trigger a run by hand from the Actions tab, for testing.
+  workflow_dispatch:
+
+# Needed so the job can commit the updated history.json back to the repo.
+permissions:
+  contents: write
+
+# Never let two runs overlap and race on the history commit.
+concurrency:
+  group: daily-briefing
+  cancel-in-progress: false
+
+jobs:
+  briefing:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Send the briefing
+        env:
+          GUARDIAN_API_KEY:   ${{ secrets.GUARDIAN_API_KEY }}
+          NEWSDATA_API_KEY:   ${{ secrets.NEWSDATA_API_KEY }}
+          GEMINI_API_KEY:     ${{ secrets.GEMINI_API_KEY }}
+          GMAIL_ADDRESS:      ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          BRIEFING_RECIPIENT: ${{ secrets.BRIEFING_RECIPIENT }}
+        run: python run.py --send --alert-on-failure
+
+      - name: Commit updated history
+        # Runs even if a later step failed, so a sent briefing is always
+        # recorded. Skips cleanly when nothing changed.
+        if: always()
+        run: |
+          git config user.name  "briefing-bot"
+          git config user.email "briefing-bot@users.noreply.github.com"
+          if ! git diff --quiet history.json 2>/dev/null; then
+            git add history.json
+            git commit -m "chore: update briefing history [skip ci]"
+            git push
+          else
+            echo "history.json unchanged — nothing to commit"
+          fi
