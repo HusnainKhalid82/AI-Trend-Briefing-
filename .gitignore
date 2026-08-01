@@ -24,5 +24,9 @@ scratch*.json
 # OS
 .DS_Store
 
+# Local-only working files (not part of the codebase)
+*.docx
+linkedin/
+
 # NOTE: history.json is intentionally NOT ignored — it is the deduplication
 # database, committed back by the workflow after each run.
