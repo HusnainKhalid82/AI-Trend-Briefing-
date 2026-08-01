@@ -1,0 +1,129 @@
+{#
+  Email HTML, not web HTML. Constraints that drive the odd-looking markup:
+  - Table layout, because Outlook ignores flexbox and grid entirely.
+  - Inline styles, because Gmail strips <style> blocks in some clients.
+  - max-width 600px, the safe width across desktop and mobile clients.
+  - No external images or fonts; several clients block them by default.
+#}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
+       style="background:#f4f6f8;margin:0;padding:24px 12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"
+       style="max-width:600px;width:100%;background:#ffffff;border-radius:6px;border:1px solid #dfe4e9;">
+
+  <!-- header -->
+  <tr><td style="padding:26px 28px 18px;border-bottom:2px solid #16222c;">
+    <div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:#1b5b75;font-weight:700;">
+      AI Trend Briefing
+    </div>
+    <div style="font-size:23px;font-weight:700;color:#16222c;margin-top:6px;line-height:1.25;">
+      {{ date_label }}
+    </div>
+    <div style="font-size:13px;color:#5c6b78;margin-top:8px;line-height:1.5;">
+      {% if stories %}
+        {{ stories|length }}{{ ' story' if stories|length == 1 else ' stories' }} worth covering
+        &middot; {{ total_items }} items scanned from {{ sources_ok }} sources
+      {% else %}
+        {{ total_items }} items scanned &middot; nothing cleared the bar
+      {% endif %}
+    </div>
+  </td></tr>
+
+  {% if not stories %}
+  <!-- slow news day: report the absence honestly rather than pad the briefing -->
+  <tr><td style="padding:30px 28px;">
+    <div style="background:#fdf6e3;border-left:3px solid #9a6206;padding:16px 18px;">
+      <div style="font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:#9a6206;font-weight:700;">
+        Quiet day
+      </div>
+      <p style="font-size:14px;line-height:1.6;color:#3f4c58;margin:10px 0 0;">
+        No story had enough substance behind it to summarise honestly today.
+        Rather than inflate a minor update into something it isn't, here's the
+        watchlist — anything building here may be worth covering tomorrow.
+      </p>
+    </div>
+  </td></tr>
+  {% endif %}
+
+  <!-- stories -->
+  {% for s in stories %}
+  <tr><td style="padding:26px 28px 4px;{% if not loop.first %}border-top:1px solid #e6ebef;{% endif %}">
+
+    <div style="font-size:11px;color:#8794a1;letter-spacing:0.6px;margin-bottom:7px;">
+      {{ loop.index }} &nbsp;&middot;&nbsp;
+      <span style="color:#1b5b75;font-weight:700;text-transform:uppercase;">{{ s.topic_label }}</span>
+      &nbsp;&middot;&nbsp; {{ s.age_label }}
+      &nbsp;&middot;&nbsp; <span style="color:{{ s.saturation_colour }};font-weight:700;">{{ s.saturation_label }} coverage</span>
+    </div>
+
+    <div style="font-size:19px;font-weight:700;color:#16222c;line-height:1.32;margin-bottom:16px;">
+      {{ s.title }}
+    </div>
+
+    <div style="font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:#8794a1;font-weight:700;margin-bottom:5px;">
+      What happened
+    </div>
+    <p style="font-size:14.5px;line-height:1.62;color:#25313c;margin:0 0 16px;">{{ s.what_happened }}</p>
+
+    <div style="font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:#8794a1;font-weight:700;margin-bottom:5px;">
+      Context
+    </div>
+    <p style="font-size:14.5px;line-height:1.62;color:#25313c;margin:0 0 16px;">{{ s.context }}</p>
+
+    <div style="background:#eef4f7;border-left:3px solid #1b5b75;padding:12px 15px;margin-bottom:16px;">
+      <div style="font-size:10px;letter-spacing:1.3px;text-transform:uppercase;color:#1b5b75;font-weight:700;margin-bottom:4px;">
+        Why it can spread
+      </div>
+      <p style="font-size:14px;line-height:1.55;color:#25313c;margin:0;">{{ s.why_it_spreads }}</p>
+    </div>
+
+    <div style="font-size:12.5px;line-height:1.9;color:#5c6b78;padding-bottom:8px;">
+      {% for link in s.links %}
+        <a href="{{ link.url }}" style="color:#1b5b75;text-decoration:none;border-bottom:1px solid #b9ccd6;">{{ link.label }}</a>{% if not loop.last %} &nbsp;&middot;&nbsp; {% endif %}
+      {% endfor %}
+      {% if s.seen_in %}
+        <div style="color:#8794a1;font-size:11.5px;margin-top:4px;">carried by {{ s.seen_in }}</div>
+      {% endif %}
+    </div>
+
+  </td></tr>
+  {% endfor %}
+
+  <!-- watchlist -->
+  {% if watchlist %}
+  <tr><td style="padding:24px 28px;background:#f8fafb;border-top:1px solid #e6ebef;">
+    <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#16222c;font-weight:700;">
+      Watchlist
+    </div>
+    <div style="font-size:12px;color:#8794a1;margin:3px 0 14px;">
+      Building, not yet major &mdash; worth preparing for
+    </div>
+    {% for w in watchlist %}
+    <div style="padding:9px 0;{% if not loop.last %}border-bottom:1px solid #e6ebef;{% endif %}">
+      <a href="{{ w.url }}" style="font-size:14px;color:#25313c;text-decoration:none;line-height:1.45;font-weight:600;">{{ w.title }}</a>
+      <div style="font-size:11.5px;color:#8794a1;margin-top:3px;">
+        {{ w.topic_label }} &nbsp;&middot;&nbsp; {{ w.age_label }}
+        &nbsp;&middot;&nbsp; <span style="color:{{ w.saturation_colour }};">{{ w.saturation_label }} coverage</span>
+      </div>
+    </div>
+    {% endfor %}
+  </td></tr>
+  {% endif %}
+
+  <!-- footer: operational health, so silent degradation is visible -->
+  <tr><td style="padding:18px 28px 24px;border-top:1px solid #e6ebef;">
+    <div style="font-size:11.5px;color:#8794a1;line-height:1.65;">
+      {{ total_items }} items &rarr; {{ total_stories }} stories &middot;
+      {{ sources_ok }}/{{ sources_total }} sources healthy
+      {%- if saturation_note %} &middot; {{ saturation_note }}{% endif %}
+      {% if degraded %}
+      <div style="color:#9a6206;margin-top:6px;">
+        Degraded: {{ degraded }} &mdash; today's ranking may be less reliable than usual.
+      </div>
+      {% endif %}
+    </div>
+  </td></tr>
+
+</table>
+</td></tr>
+</table>
